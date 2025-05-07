@@ -2,6 +2,7 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
+using SemanticKernelPlayground.Plugins;
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -16,7 +17,9 @@ var builder = Kernel.CreateBuilder()
     .AddAzureOpenAIChatCompletion(modelName, endpoint, apiKey);
 
 var kernel = builder.Build();
-
+kernel.ImportPluginFromObject(new GitRepoPlugin(), "GitRepo");
+kernel.ImportPluginFromObject(new GitLogPlugin(), "GitLog");
+kernel.ImportPluginFromObject(new ReleaseNotesPlugin(), "ReleaseNotes");
 var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
 AzureOpenAIPromptExecutionSettings openAiPromptExecutionSettings = new()
