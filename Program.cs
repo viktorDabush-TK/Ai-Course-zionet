@@ -19,7 +19,9 @@ var builder = Kernel.CreateBuilder()
 var kernel = builder.Build();
 kernel.ImportPluginFromObject(new GitRepoPlugin(), "GitRepo");
 kernel.ImportPluginFromObject(new GitLogPlugin(), "GitLog");
-kernel.ImportPluginFromObject(new ReleaseNotesPlugin(), "ReleaseNotes");
+kernel.ImportPluginFromObject(new ReleaseNotesPlugin(kernel), "ReleaseNotes");
+kernel.ImportPluginFromObject(new VersionManagerPlugin(), "VersionManager");
+
 var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
 AzureOpenAIPromptExecutionSettings openAiPromptExecutionSettings = new()
