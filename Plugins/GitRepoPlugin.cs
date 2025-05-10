@@ -299,7 +299,6 @@ namespace SemanticKernelPlayground.Plugins
             {
                 string currentBranch = string.Empty;
 
-                // Step 1: Get current branch name
                 var branchProcess = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -327,7 +326,6 @@ namespace SemanticKernelPlayground.Plugins
                     };
                 }
 
-                // Step 2: Check if upstream is set
                 var upstreamCheck = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -349,7 +347,6 @@ namespace SemanticKernelPlayground.Plugins
 
                 bool hasUpstream = upstreamCheck.ExitCode == 0;
 
-                // Step 3: Push with or without --set-upstream
                 var pushArgs = hasUpstream
                     ? "push"
                     : $"push --set-upstream origin {currentBranch}";
