@@ -605,31 +605,43 @@ namespace SemanticKernelPlayground.Plugins
         {
             if (string.IsNullOrEmpty(_activeRepoPath))
             {
-                return new GitRepoResult { Success = false, Message = "No active Git repository selected." };
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
             }
 
             try
             {
                 using var repo = new Repository(_activeRepoPath);
                 var status = repo.RetrieveStatus();
+
                 var changes = status
                     .Where(s => s.State != FileStatus.Ignored && s.State != FileStatus.Unaltered)
-                    .Select(s => $"{s.FilePath} — {s.State}")
+                    .Select(s => new GitFileChange
+                    {
+                        FilePath = s.FilePath,
+                        ChangeType = s.State.ToString()
+                    })
                     .ToList();
 
                 return new GitRepoResult
                 {
                     Success = true,
                     Message = changes.Count > 0 ? "Changed files:" : "No modified or untracked files found.",
-                    RepoPaths = changes
+                    ChangedFiles = changes
                 };
             }
             catch (Exception ex)
             {
-                return new GitRepoResult { Success = false, Message = $"Failed to retrieve file changes: {ex.Message}" };
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to retrieve file changes: {ex.Message}"
+                };
             }
         }
-
 
         public string? GetRepoPathInternal() => _activeRepoPath;
     }
