@@ -517,7 +517,6 @@ namespace SemanticKernelPlayground.Plugins
             }
         }
 
-        // In GitRepoPlugin.cs
 
         [KernelFunction, Description("Shows unstaged files and optionally stages and commits them.")]
         public GitRepoResult StageAndCommit(
@@ -539,7 +538,6 @@ namespace SemanticKernelPlayground.Plugins
             {
                 using var repo = new Repository(_activeRepoPath);
 
-                // Check status
                 var status = repo.RetrieveStatus(new StatusOptions());
                 var unstagedFiles = status
                     .Where(s => s.State != FileStatus.Ignored && s.State != FileStatus.Unaltered)
@@ -574,7 +572,6 @@ namespace SemanticKernelPlayground.Plugins
                 var author = repo.Config.BuildSignature(DateTimeOffset.Now) ??
                              new Signature("AI Agent", "ai@example.com", DateTimeOffset.Now);
 
-                // Final check
                 if (!repo.Index.Any())
                 {
                     return new GitRepoResult
