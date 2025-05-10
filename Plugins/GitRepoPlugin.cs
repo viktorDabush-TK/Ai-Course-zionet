@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using SemanticKernelPlayground.Plugins.Models;
 using LibGit2Sharp;
+using System.Diagnostics;
 
 namespace SemanticKernelPlayground.Plugins
 {
@@ -234,6 +235,291 @@ namespace SemanticKernelPlayground.Plugins
                 };
             }
         }
+
+        [KernelFunction, Description("Creates a new branch from an existing one in the active repository.")]
+        public GitRepoResult CreateBranch(
+    [Description("The name of the source branch to base the new branch on.")] string sourceBranch,
+    [Description("The name of the new branch to create.")] string newBranch)
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                using var repo = new Repository(_activeRepoPath);
+
+                var source = repo.Branches[sourceBranch] ?? repo.Branches.FirstOrDefault(b => b.FriendlyName == sourceBranch);
+                if (source == null)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = $"Source branch '{sourceBranch}' not found."
+                    };
+                }
+
+                var newCreated = repo.CreateBranch(newBranch, source.Tip);
+                return new GitRepoResult
+                {
+                    Success = true,
+                    Message = $"Created new branch '{newCreated.FriendlyName}' from '{sourceBranch}'.",
+                    SelectedRepo = _activeRepoPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to create branch: {ex.Message}"
+                };
+            }
+        }
+
+
+        [KernelFunction, Description("Pushes the current branch using Git CLI, including support for new branches.")]
+        public GitRepoResult PushWithGitCli()
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                string currentBranch = string.Empty;
+
+                // Step 1: Get current branch name
+                var branchProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "rev-parse --abbrev-ref HEAD",
+                        WorkingDirectory = _activeRepoPath,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                branchProcess.Start();
+                currentBranch = branchProcess.StandardOutput.ReadToEnd().Trim();
+                branchProcess.WaitForExit();
+
+                if (string.IsNullOrEmpty(currentBranch))
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = "Failed to determine the current branch name."
+                    };
+                }
+
+                // Step 2: Check if upstream is set
+                var upstreamCheck = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"rev-parse --symbolic-full-name --abbrev-ref {currentBranch}@{{u}}",
+                        WorkingDirectory = _activeRepoPath,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                upstreamCheck.Start();
+                var upstreamOutput = upstreamCheck.StandardOutput.ReadToEnd();
+                var upstreamError = upstreamCheck.StandardError.ReadToEnd();
+                upstreamCheck.WaitForExit();
+
+                bool hasUpstream = upstreamCheck.ExitCode == 0;
+
+                // Step 3: Push with or without --set-upstream
+                var pushArgs = hasUpstream
+                    ? "push"
+                    : $"push --set-upstream origin {currentBranch}";
+
+                var pushProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = pushArgs,
+                        WorkingDirectory = _activeRepoPath,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                pushProcess.Start();
+                string output = pushProcess.StandardOutput.ReadToEnd();
+                string error = pushProcess.StandardError.ReadToEnd();
+                pushProcess.WaitForExit();
+
+                return pushProcess.ExitCode == 0
+                    ? new GitRepoResult
+                    {
+                        Success = true,
+                        Message = $"Push succeeded.\n{output}",
+                        SelectedRepo = _activeRepoPath
+                    }
+                    : new GitRepoResult
+                    {
+                        Success = false,
+                        Message = $"Push failed.\n{error}"
+                    };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Exception during push: {ex.Message}"
+                };
+            }
+        }
+
+
+        [KernelFunction, Description("Pulls the latest changes from the origin for the current branch using system Git.")]
+        public GitRepoResult PullWithGitCli()
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "pull",
+                        WorkingDirectory = _activeRepoPath,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode == 0)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = true,
+                        Message = "Pull succeeded.",
+                        SelectedRepo = _activeRepoPath
+                    };
+                }
+                else
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = $"Pull failed:\n{error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Exception during pull: {ex.Message}"
+                };
+            }
+        }
+
+        [KernelFunction, Description("Merges the specified branch into the current branch using system Git.")]
+        public GitRepoResult MergeBranchWithGitCli(
+        [Description("The name of the branch to merge into the current branch.")] string sourceBranch)
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = $"merge {sourceBranch}",
+                        WorkingDirectory = _activeRepoPath,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode == 0)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = true,
+                        Message = $"Successfully merged branch '{sourceBranch}' into the current branch.",
+                        SelectedRepo = _activeRepoPath
+                    };
+                }
+                else
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = $"Merge failed:\n{error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Exception during merge: {ex.Message}"
+                };
+            }
+        }
+
 
         public string? GetRepoPathInternal() => _activeRepoPath;
     }
