@@ -26,7 +26,7 @@ namespace SemanticKernelPlayground.Plugins
             {
                 return new List<string>
                 {
-                    "⚠️ No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
+                    "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
                 };
             }
 
@@ -46,7 +46,7 @@ namespace SemanticKernelPlayground.Plugins
 
             if (string.IsNullOrEmpty(repoPath))
             {
-                return "⚠️ No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first.";
+                return "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first.";
             }
 
             using var repo = new Repository(repoPath);
@@ -58,7 +58,7 @@ namespace SemanticKernelPlayground.Plugins
 
             if (commits.Count == 0)
             {
-                return "⚠️ No commits found in the selected repository.";
+                return "No commits found in the selected repository.";
             }
 
             var chatService = _kernel.GetRequiredService<IChatCompletionService>();
@@ -80,7 +80,7 @@ namespace SemanticKernelPlayground.Plugins
 
             var response = await chatService.GetChatMessageContentAsync(history, kernel: _kernel);
 
-            return response?.Content ?? "⚠️ Failed to generate release notes.";
+            return response?.Content ?? "Failed to generate release notes.";
         }
 
         [KernelFunction, Description("Generates release notes and saves them to RELEASE_NOTES.md in the selected Git repository.")]
@@ -89,7 +89,7 @@ namespace SemanticKernelPlayground.Plugins
         {
             var notes = await GenerateReleaseNotesAsync(commitCount);
 
-            if (notes.StartsWith("⚠️") || notes.StartsWith("❌"))
+            if (notes.StartsWith("No Git repository selected.") || notes.StartsWith("No commits found") || notes.StartsWith("Failed to"))
             {
                 return notes;
             }
@@ -97,13 +97,13 @@ namespace SemanticKernelPlayground.Plugins
             var repoPath = _repoHelper.GetRepoPathInternal();
             if (string.IsNullOrEmpty(repoPath))
             {
-                return "⚠️ No Git repository selected.";
+                return "No Git repository selected.";
             }
 
             var filePath = Path.Combine(repoPath, "RELEASE_NOTES.md");
 
             File.WriteAllText(filePath, notes, Encoding.UTF8);
-            return $"✅ Release notes generated and saved to:\n`{filePath}`";
+            return $"Release notes generated and saved to:\n{filePath}";
         }
     }
 }

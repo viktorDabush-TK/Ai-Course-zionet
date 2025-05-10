@@ -17,7 +17,7 @@ namespace SemanticKernelPlayground.Plugins
             if (string.IsNullOrEmpty(repoPath))
             {
                 return new List<string> {
-                    "⚠️ No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
+                    "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
                 };
             }
 
@@ -37,7 +37,7 @@ namespace SemanticKernelPlayground.Plugins
 
             if (string.IsNullOrEmpty(repoPath))
             {
-                return "⚠️ No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first.";
+                return "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first.";
             }
 
             using var repo = new Repository(repoPath);
@@ -52,7 +52,7 @@ namespace SemanticKernelPlayground.Plugins
                 return "No commits found in the selected repository.";
             }
 
-            return $"📝 Last {commitCount} commits:\n{string.Join("\n", commits)}";
+            return $"Last {commitCount} commits:\n{string.Join("\n", commits)}";
         }
     }
 }

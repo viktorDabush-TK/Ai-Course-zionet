@@ -13,17 +13,17 @@ namespace SemanticKernelPlayground.Plugins
         {
             if (VersionFilePath == null)
             {
-                return "❌ Could not locate your Git repository or VERSION file.";
+                return "Could not locate your Git repository or VERSION file.";
             }
 
             var versionText = File.ReadAllText(VersionFilePath).Trim();
 
             if (!SemVersion.TryParse(versionText, out var semver))
             {
-                return $"⚠️ Invalid version format in VERSION file: '{versionText}'. Expected format: x.y.z";
+                return $"Invalid version format in VERSION file: '{versionText}'. Expected format: x.y.z";
             }
 
-            return $"✅ Your current version is {semver}.";
+            return $"Current version is {semver}.";
         }
 
         [KernelFunction, Description("Bumps the semantic version based on the specified level (major, minor, patch).")]
@@ -33,14 +33,14 @@ namespace SemanticKernelPlayground.Plugins
         {
             if (VersionFilePath == null)
             {
-                return "❌ Could not locate your Git repository or VERSION file.";
+                return "Could not locate your Git repository or VERSION file.";
             }
 
             var versionText = File.ReadAllText(VersionFilePath).Trim();
 
             if (!SemVersion.TryParse(versionText, out var currentVersion))
             {
-                return $"⚠️ Cannot bump version. Invalid format in VERSION file: '{versionText}'";
+                return $"Cannot bump version. Invalid format in VERSION file: '{versionText}'";
             }
 
             SemVersion newVersion = level.ToLower() switch
@@ -52,7 +52,7 @@ namespace SemanticKernelPlayground.Plugins
             };
 
             File.WriteAllText(VersionFilePath, newVersion.ToString());
-            return $"🔖 Version updated: {currentVersion} → {newVersion}";
+            return $"Version updated: {currentVersion} → {newVersion}";
         }
     }
 }
