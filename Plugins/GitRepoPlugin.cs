@@ -517,6 +517,91 @@ namespace SemanticKernelPlayground.Plugins
             }
         }
 
+        // In GitRepoPlugin.cs
+
+        [KernelFunction, Description("Shows unstaged files and optionally stages and commits them.")]
+        public GitRepoResult StageAndCommit(
+            [Description("Commit message to use")] string commitMessage,
+            [Description("List of file paths to stage. If empty and stageAll is false, nothing will be committed.")]
+    List<string>? filePaths = null,
+            [Description("If true, stage all unstaged files.")] bool stageAll = false)
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                using var repo = new Repository(_activeRepoPath);
+
+                // Check status
+                var status = repo.RetrieveStatus(new StatusOptions());
+                var unstagedFiles = status
+                    .Where(s => s.State != FileStatus.Ignored && s.State != FileStatus.Unaltered)
+                    .Select(s => s.FilePath)
+                    .ToList();
+
+                if (unstagedFiles.Count == 0)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = "No changes to stage or commit."
+                    };
+                }
+
+                var filesToStage = stageAll ? unstagedFiles : filePaths ?? new();
+
+                if (filesToStage.Count == 0)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = "No files provided to stage, and stageAll is false."
+                    };
+                }
+
+                foreach (var path in filesToStage)
+                {
+                    Commands.Stage(repo, path);
+                }
+
+                var author = repo.Config.BuildSignature(DateTimeOffset.Now) ??
+                             new Signature("AI Agent", "ai@example.com", DateTimeOffset.Now);
+
+                // Final check
+                if (!repo.Index.Any())
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = "No changes staged after processing."
+                    };
+                }
+
+                var commit = repo.Commit(commitMessage, author, author);
+
+                return new GitRepoResult
+                {
+                    Success = true,
+                    Message = $"Committed with message: '{commitMessage}'",
+                    SelectedRepo = _activeRepoPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to stage and commit: {ex.Message}"
+                };
+            }
+        }
 
         public string? GetRepoPathInternal() => _activeRepoPath;
     }
