@@ -7,21 +7,32 @@ namespace SemanticKernelPlayground.Plugins
 {
     public class VersionManagerPlugin
     {
-        private static readonly string? VersionFilePath = Helper.GetVersionFilePath();
-
         [KernelFunction, Description("Reads the current semantic version from the VERSION file.")]
         public VersionResult GetCurrentVersion()
         {
-            if (VersionFilePath == null)
+            var repoRoot = Helper.TryAutoDetectRepo()?.Path;
+            if (repoRoot == null)
             {
                 return new VersionResult
                 {
                     Success = false,
-                    Message = "Could not locate your Git repository or VERSION file."
+                    Message = "Could not locate your Git repository."
                 };
             }
 
-            var versionText = File.ReadAllText(VersionFilePath).Trim();
+            var versionPath = Path.Combine(repoRoot, "VERSION");
+
+            if (!File.Exists(versionPath))
+            {
+                return new VersionResult
+                {
+                    Success = false,
+                    Message = "VERSION file does not exist. Use `CreateVersionFile` to create it.",
+                    FilePath = versionPath
+                };
+            }
+
+            var versionText = File.ReadAllText(versionPath).Trim();
 
             if (!SemVersion.TryParse(versionText, out var semver))
             {
@@ -29,7 +40,7 @@ namespace SemanticKernelPlayground.Plugins
                 {
                     Success = false,
                     Message = $"Invalid version format in VERSION file: '{versionText}'. Expected format: x.y.z",
-                    FilePath = VersionFilePath
+                    FilePath = versionPath
                 };
             }
 
@@ -38,7 +49,53 @@ namespace SemanticKernelPlayground.Plugins
                 Success = true,
                 Message = $"Current version is {semver}.",
                 CurrentVersion = semver.ToString(),
-                FilePath = VersionFilePath
+                FilePath = versionPath
+            };
+        }
+
+        [KernelFunction, Description("Creates a VERSION file with a specified version. Default is 0.0.0.")]
+        public VersionResult CreateVersionFile(
+            [Description("Initial version to write (e.g., 1.0.0). Defaults to 0.0.0.")] string initialVersion = "0.0.0")
+        {
+            var repoRoot = Helper.TryAutoDetectRepo()?.Path;
+            if (repoRoot == null)
+            {
+                return new VersionResult
+                {
+                    Success = false,
+                    Message = "Could not locate your Git repository."
+                };
+            }
+
+            var versionPath = Path.Combine(repoRoot, "VERSION");
+
+            if (File.Exists(versionPath))
+            {
+                return new VersionResult
+                {
+                    Success = false,
+                    Message = "VERSION file already exists.",
+                    FilePath = versionPath
+                };
+            }
+
+            if (!SemVersion.TryParse(initialVersion, out var semver))
+            {
+                return new VersionResult
+                {
+                    Success = false,
+                    Message = $"Invalid version format: '{initialVersion}'. Expected format: x.y.z"
+                };
+            }
+
+            File.WriteAllText(versionPath, semver.ToString());
+
+            return new VersionResult
+            {
+                Success = true,
+                Message = $"VERSION file created with version {semver}.",
+                CurrentVersion = semver.ToString(),
+                FilePath = versionPath
             };
         }
 
@@ -47,16 +104,29 @@ namespace SemanticKernelPlayground.Plugins
             [Description("The version increment type: 'major', 'minor', or 'patch'.")]
             string level = "patch")
         {
-            if (VersionFilePath == null)
+            var repoRoot = Helper.TryAutoDetectRepo()?.Path;
+            if (repoRoot == null)
             {
                 return new VersionResult
                 {
                     Success = false,
-                    Message = "Could not locate your Git repository or VERSION file."
+                    Message = "Could not locate your Git repository."
                 };
             }
 
-            var versionText = File.ReadAllText(VersionFilePath).Trim();
+            var versionPath = Path.Combine(repoRoot, "VERSION");
+
+            if (!File.Exists(versionPath))
+            {
+                return new VersionResult
+                {
+                    Success = false,
+                    Message = "VERSION file does not exist. Use `CreateVersionFile` first.",
+                    FilePath = versionPath
+                };
+            }
+
+            var versionText = File.ReadAllText(versionPath).Trim();
 
             if (!SemVersion.TryParse(versionText, out var currentVersion))
             {
@@ -64,7 +134,7 @@ namespace SemanticKernelPlayground.Plugins
                 {
                     Success = false,
                     Message = $"Cannot bump version. Invalid format in VERSION file: '{versionText}'",
-                    FilePath = VersionFilePath
+                    FilePath = versionPath
                 };
             }
 
@@ -76,7 +146,7 @@ namespace SemanticKernelPlayground.Plugins
                 _ => currentVersion
             };
 
-            File.WriteAllText(VersionFilePath, newVersion.ToString());
+            File.WriteAllText(versionPath, newVersion.ToString());
 
             return new VersionResult
             {
@@ -84,7 +154,7 @@ namespace SemanticKernelPlayground.Plugins
                 Message = $"Version updated: {currentVersion} → {newVersion}",
                 PreviousVersion = currentVersion.ToString(),
                 CurrentVersion = newVersion.ToString(),
-                FilePath = VersionFilePath
+                FilePath = versionPath
             };
         }
     }
