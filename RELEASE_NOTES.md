@@ -1,18 +1,27 @@
-﻿## Features
+﻿# Release Notes
 
-- Added a new chat application utilizing Semantic Kernel and Azure OpenAI.
-- Included initial project files.
-- Added appsettings.json with configuration placeholders.
-- Updated `README.md` with application overview and setup instructions.
+## Features
+
+- **Chat Application Integration:**  
+  - Added a chat application utilizing Semantic Kernel and Azure OpenAI.
+  - Introduced `appsettings.json` with configuration placeholders.
+  - Updated `README.md` with application overview and setup instructions.
+- **Project Initialization:**  
+  - Added initial project files.
+  - Included `.gitattributes` and `.gitignore` for repository configuration.
+- **Semver Implementation:**  
+  - Integrated Semantic Versioning (Semver) support.
+  - Refactored helper functions for better maintainability.
 
 ## Improvements
 
-- Refactored by moving functions to a helper module for better code organization.
-- Enhanced and improved functionality of three plugins.
-- General plugin improvements.
+- **Plugins Enhancement:**  
+  - Improved and enhanced three plugins for extended functionality and better performance.
+- **Release Notes:**  
+  - Enhanced release notes feature with the option to save to a file.
+  - Refactored release note-related code for clarity and reliability.
 
-## Maintenance
+## Other Changes
 
-- Added `.gitattributes` and `.gitignore` for repository configuration.
-- Integrated Semantic Versioning (Semver).
-- Fixed formatting and content of release notes.
+- **Cleanup:**  
+  - Removed unused icons for a cleaner project structure.

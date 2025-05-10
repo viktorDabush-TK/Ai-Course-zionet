@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using LibGit2Sharp;
 using System.ComponentModel;
 using System.Text;
+using SemanticKernelPlayground.Plugins.Models;
 
 namespace SemanticKernelPlayground.Plugins
 {
@@ -16,49 +17,62 @@ namespace SemanticKernelPlayground.Plugins
             _kernel = kernel;
         }
 
-        [KernelFunction, Description("Returns the raw commit messages from the selected Git repository.")]
-        public List<string> ListCommits(
+        [KernelFunction, Description("Returns commit details from the selected Git repository.")]
+        public List<CommitInfo> ListCommits(
             [Description("Number of commits to list. Defaults to 10.")] int commitCount = 10)
         {
             var repoPath = _repoHelper.GetRepoPathInternal();
-
             if (string.IsNullOrEmpty(repoPath))
             {
-                return new List<string>
+                return new List<CommitInfo>
                 {
-                    "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
+                    new CommitInfo { Message = "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first." }
                 };
             }
 
             using var repo = new Repository(repoPath);
 
             return repo.Commits
-                       .Take(commitCount)
-                       .Select(c => c.MessageShort)
-                       .ToList();
+                .Take(commitCount)
+                .Select(c => new CommitInfo
+                {
+                    Message = c.MessageShort,
+                    Author = c.Author.Name,
+                    Date = c.Committer.When.LocalDateTime
+                })
+                .ToList();
         }
 
         [KernelFunction, Description("Generates professional release notes from recent Git commits using AI (preview only).")]
-        public async Task<string> GenerateReleaseNotesAsync(
-            [Description("Number of recent commits to include. Defaults to 10.")] int commitCount = 10)
+        public async Task<ReleaseNoteResult> GenerateReleaseNotesAsync(ReleaseNoteRequest request)
         {
             var repoPath = _repoHelper.GetRepoPathInternal();
-
             if (string.IsNullOrEmpty(repoPath))
             {
-                return "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first.";
+                return new ReleaseNoteResult
+                {
+                    Success = false,
+                    Message = "No Git repository selected. Use 'SetActiveRepoPath' or 'SelectGitRepoByIndex' first."
+                };
             }
 
             using var repo = new Repository(repoPath);
 
-            var commits = repo.Commits
-                              .Take(commitCount)
-                              .Select(c => c.MessageShort)
-                              .ToList();
+            var commits = GetFilteredCommits(repo, new CommitFilterOptions
+            {
+                MaxCount = request.CommitCount,
+                AuthorContains = request.Author,
+                Since = request.Since
+            });
 
             if (commits.Count == 0)
             {
-                return "No commits found in the selected repository.";
+                return new ReleaseNoteResult
+                {
+                    Success = false,
+                    Message = "No matching commits found.",
+                    RepoPath = repoPath
+                };
             }
 
             var chatService = _kernel.GetRequiredService<IChatCompletionService>();
@@ -68,7 +82,7 @@ namespace SemanticKernelPlayground.Plugins
                 You are a professional release manager. Summarize the following Git commits into a clean and well-structured markdown release note.
 
                 Commits:
-                {string.Join("\n", commits)}
+                {string.Join("\n", commits.Select(c => $"- {c.Message}"))}
 
                 Format the output using markdown with sections like:
                 - ## Features
@@ -80,30 +94,70 @@ namespace SemanticKernelPlayground.Plugins
 
             var response = await chatService.GetChatMessageContentAsync(history, kernel: _kernel);
 
-            return response?.Content ?? "Failed to generate release notes.";
+            if (response == null || string.IsNullOrWhiteSpace(response.Content))
+            {
+                return new ReleaseNoteResult
+                {
+                    Success = false,
+                    Message = "Failed to generate release notes.",
+                    RepoPath = repoPath
+                };
+            }
+
+            return new ReleaseNoteResult
+            {
+                Success = true,
+                Message = response.Content,
+                RepoPath = repoPath,
+                Commits = commits
+            };
         }
 
         [KernelFunction, Description("Generates release notes and saves them to RELEASE_NOTES.md in the selected Git repository.")]
-        public async Task<string> GenerateAndSaveReleaseNotesAsync(
-            [Description("Number of recent commits to include. Defaults to 10.")] int commitCount = 10)
+        public async Task<ReleaseNoteResult> GenerateAndSaveReleaseNotesAsync(ReleaseNoteRequest request)
         {
-            var notes = await GenerateReleaseNotesAsync(commitCount);
+            var result = await GenerateReleaseNotesAsync(request);
 
-            if (notes.StartsWith("No Git repository selected.") || notes.StartsWith("No commits found") || notes.StartsWith("Failed to"))
+            if (!result.Success || string.IsNullOrWhiteSpace(result.Message) || string.IsNullOrWhiteSpace(result.RepoPath))
             {
-                return notes;
+                return result;
             }
 
-            var repoPath = _repoHelper.GetRepoPathInternal();
-            if (string.IsNullOrEmpty(repoPath))
+            var filePath = Path.Combine(result.RepoPath, "RELEASE_NOTES.md");
+            File.WriteAllText(filePath, result.Message, Encoding.UTF8);
+
+            result.FilePath = filePath;
+            result.Message = "Release notes generated and saved.";
+            return result;
+        }
+
+        private List<CommitInfo> GetFilteredCommits(Repository repo, CommitFilterOptions options)
+        {
+            var commits = repo.Commits.AsQueryable();
+
+            if (options.Since.HasValue)
             {
-                return "No Git repository selected.";
+                commits = commits.Where(c => c.Committer.When.UtcDateTime >= options.Since.Value);
             }
 
-            var filePath = Path.Combine(repoPath, "RELEASE_NOTES.md");
+            if (!string.IsNullOrWhiteSpace(options.AuthorContains))
+            {
+                commits = commits.Where(c => c.Author.Name.Contains(options.AuthorContains, StringComparison.OrdinalIgnoreCase));
+            }
 
-            File.WriteAllText(filePath, notes, Encoding.UTF8);
-            return $"Release notes generated and saved to:\n{filePath}";
+            if (options.MaxCount.HasValue)
+            {
+                commits = commits.Take(options.MaxCount.Value);
+            }
+
+            return commits
+                .Select(c => new CommitInfo
+                {
+                    Message = c.MessageShort,
+                    Author = c.Author.Name,
+                    Date = c.Committer.When.LocalDateTime
+                })
+                .ToList();
         }
     }
 }
