@@ -1,6 +1,7 @@
 ﻿using Microsoft.SemanticKernel;
 using System.ComponentModel;
 using SemanticKernelPlayground.Plugins.Models;
+using LibGit2Sharp;
 
 namespace SemanticKernelPlayground.Plugins
 {
@@ -116,6 +117,122 @@ namespace SemanticKernelPlayground.Plugins
                 Message = $"Active Git repository: {_activeRepoPath}",
                 SelectedRepo = _activeRepoPath
             };
+        }
+
+        [KernelFunction, Description("Lists all local branches in the active Git repository.")]
+        public GitRepoResult ListBranches()
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                using var repo = new Repository(_activeRepoPath);
+                var branches = repo.Branches
+                    .Where(b => !b.IsRemote)
+                    .Select(b => b.FriendlyName)
+                    .ToList();
+
+                return new GitRepoResult
+                {
+                    Success = true,
+                    Message = $"Found {branches.Count} local branches.",
+                    RepoPaths = branches
+                };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to list branches: {ex.Message}"
+                };
+            }
+        }
+
+        [KernelFunction, Description("Switches to the specified Git branch in the active repository.")]
+        public GitRepoResult CheckoutBranch(string branchName)
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                using var repo = new Repository(_activeRepoPath);
+                var branch = repo.Branches[branchName] ?? repo.Branches.FirstOrDefault(b => b.FriendlyName == branchName);
+
+                if (branch == null)
+                {
+                    return new GitRepoResult
+                    {
+                        Success = false,
+                        Message = $"Branch '{branchName}' not found."
+                    };
+                }
+
+                Commands.Checkout(repo, branch);
+
+                return new GitRepoResult
+                {
+                    Success = true,
+                    Message = $"Switched to branch '{branch.FriendlyName}'.",
+                    SelectedRepo = _activeRepoPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to switch branch: {ex.Message}"
+                };
+            }
+        }
+
+        [KernelFunction, Description("Returns the name of the currently checked-out Git branch.")]
+        public GitRepoResult GetCurrentBranch()
+        {
+            if (string.IsNullOrEmpty(_activeRepoPath))
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = "No active Git repository selected."
+                };
+            }
+
+            try
+            {
+                using var repo = new Repository(_activeRepoPath);
+                var currentBranch = repo.Head?.FriendlyName ?? "(unknown)";
+
+                return new GitRepoResult
+                {
+                    Success = true,
+                    Message = $"You are currently on branch '{currentBranch}'.",
+                    SelectedRepo = _activeRepoPath
+                };
+            }
+            catch (Exception ex)
+            {
+                return new GitRepoResult
+                {
+                    Success = false,
+                    Message = $"Failed to get current branch: {ex.Message}"
+                };
+            }
         }
 
         public string? GetRepoPathInternal() => _activeRepoPath;
