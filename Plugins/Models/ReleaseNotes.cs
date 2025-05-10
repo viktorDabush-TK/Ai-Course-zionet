@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SemanticKernelPlayground.Plugins.Models
+﻿namespace SemanticKernelPlayground.Plugins.Models
 {
     public class ReleaseNoteResult
     {
@@ -14,12 +8,7 @@ namespace SemanticKernelPlayground.Plugins.Models
         public string? RepoPath { get; set; }
         public List<CommitInfo>? Commits { get; set; }
     }
-    public class CommitInfo
-    {
-        public string Message { get; set; } = string.Empty;
-        public string Author { get; set; } = string.Empty;
-        public DateTime Date { get; set; }
-    }
+
     public class ReleaseNoteRequest
     {
         public int CommitCount { get; set; } = 10;

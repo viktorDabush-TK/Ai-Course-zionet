@@ -1,0 +1,16 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SemanticKernelPlayground.Plugins.Models
+{
+    public class GitRepoResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public List<string>? RepoPaths { get; set; }
+        public string? SelectedRepo { get; set; }
+    }
+}
