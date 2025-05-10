@@ -1,10 +1,11 @@
 ﻿using System.Diagnostics;
+using SemanticKernelPlayground.Plugins.Models;
 
 namespace SemanticKernelPlayground.Plugins
 {
     public static class Helper
     {
-        public static string? GetVersionFilePath()
+        public static string? GetVersionFilePath(bool createIfMissing = true)
         {
             var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
 
@@ -16,7 +17,14 @@ namespace SemanticKernelPlayground.Plugins
 
                     if (!File.Exists(versionPath))
                     {
-                        File.WriteAllText(versionPath, "0.0.0");
+                        if (createIfMissing)
+                        {
+                            File.WriteAllText(versionPath, "0.0.0");
+                        }
+                        else
+                        {
+                            return null;
+                        }
                     }
 
                     return versionPath;
@@ -28,7 +36,7 @@ namespace SemanticKernelPlayground.Plugins
             return null;
         }
 
-        public static string? TryAutoDetectRepo()
+        public static GitDetectionResult TryAutoDetectRepo()
         {
             try
             {
@@ -46,15 +54,63 @@ namespace SemanticKernelPlayground.Plugins
 
                 if (process.ExitCode == 0)
                 {
-                    return process.StandardOutput.ReadToEnd().Trim();
+                    return new GitDetectionResult
+                    {
+                        Success = true,
+                        Path = process.StandardOutput.ReadToEnd().Trim()
+                    };
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silent fail
+                return new GitDetectionResult
+                {
+                    Success = false,
+                    Message = $"Exception while detecting Git repo: {ex.Message}"
+                };
             }
 
-            return null;
+            return new GitDetectionResult
+            {
+                Success = false,
+                Message = "Git command failed or repository not found."
+            };
         }
+
+        public static (List<string> Repos, List<string> Skipped) SafeEnumerateGitRepos(string root)
+        {
+            var repos = new List<string>();
+            var skipped = new List<string>();
+
+            void Recurse(string current)
+            {
+                try
+                {
+                    foreach (var dir in Directory.EnumerateDirectories(current))
+                    {
+                        try
+                        {
+                            if (Directory.Exists(Path.Combine(dir, ".git")))
+                            {
+                                repos.Add(dir);
+                            }
+                            Recurse(dir);
+                        }
+                        catch (Exception ex)
+                        {
+                            skipped.Add($"{dir} — {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    skipped.Add($"{current} — {ex.Message}");
+                }
+            }
+
+            Recurse(root);
+            return (repos, skipped);
+        }
+
     }
 }

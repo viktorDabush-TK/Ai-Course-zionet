@@ -12,5 +12,6 @@ namespace SemanticKernelPlayground.Plugins.Models
         public string Message { get; set; } = string.Empty;
         public List<string>? RepoPaths { get; set; }
         public string? SelectedRepo { get; set; }
+        public List<string>? Warnings { get; set; }
     }
 }

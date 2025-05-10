@@ -6,8 +6,9 @@ namespace SemanticKernelPlayground.Plugins
 {
     public class GitRepoPlugin
     {
-        private static string? _activeRepoPath = Helper.TryAutoDetectRepo();
+        private static string? _activeRepoPath = Helper.TryAutoDetectRepo()?.Path;
         private static List<string> _discoveredRepos = new();
+        private static List<string> _skippedPaths = new();
 
         [KernelFunction, Description("Scans a base folder for Git repositories and lists them.")]
         public GitRepoResult ListGitRepos(string basePath)
@@ -21,17 +22,17 @@ namespace SemanticKernelPlayground.Plugins
                 };
             }
 
-            _discoveredRepos = Directory
-                .EnumerateDirectories(basePath, "*", SearchOption.AllDirectories)
-                .Where(dir => Directory.Exists(Path.Combine(dir, ".git")))
-                .ToList();
+            var (repos, skipped) = Helper.SafeEnumerateGitRepos(basePath);
+            _discoveredRepos = repos;
+            _skippedPaths = skipped;
 
             if (_discoveredRepos.Count == 0)
             {
                 return new GitRepoResult
                 {
                     Success = false,
-                    Message = $"No Git repositories found in '{basePath}'."
+                    Message = $"No Git repositories found in '{basePath}'.",
+                    Warnings = _skippedPaths
                 };
             }
 
@@ -39,7 +40,8 @@ namespace SemanticKernelPlayground.Plugins
             {
                 Success = true,
                 Message = $"Found {_discoveredRepos.Count} repositories.",
-                RepoPaths = _discoveredRepos
+                RepoPaths = _discoveredRepos,
+                Warnings = _skippedPaths
             };
         }
 
