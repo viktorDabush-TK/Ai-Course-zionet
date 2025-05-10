@@ -2,6 +2,7 @@
 using Microsoft.SemanticKernel.ChatCompletion;
 using LibGit2Sharp;
 using System.ComponentModel;
+using System.Text;
 
 namespace SemanticKernelPlayground.Plugins
 {
@@ -37,7 +38,7 @@ namespace SemanticKernelPlayground.Plugins
                        .ToList();
         }
 
-        [KernelFunction, Description("Generates professional release notes from recent Git commits using AI.")]
+        [KernelFunction, Description("Generates professional release notes from recent Git commits using AI (preview only).")]
         public async Task<string> GenerateReleaseNotesAsync(
             [Description("Number of recent commits to include. Defaults to 10.")] int commitCount = 10)
         {
@@ -57,7 +58,7 @@ namespace SemanticKernelPlayground.Plugins
 
             if (commits.Count == 0)
             {
-                return "No commits found in the selected repository.";
+                return "⚠️ No commits found in the selected repository.";
             }
 
             var chatService = _kernel.GetRequiredService<IChatCompletionService>();
@@ -80,6 +81,29 @@ namespace SemanticKernelPlayground.Plugins
             var response = await chatService.GetChatMessageContentAsync(history, kernel: _kernel);
 
             return response?.Content ?? "⚠️ Failed to generate release notes.";
+        }
+
+        [KernelFunction, Description("Generates release notes and saves them to RELEASE_NOTES.md in the selected Git repository.")]
+        public async Task<string> GenerateAndSaveReleaseNotesAsync(
+            [Description("Number of recent commits to include. Defaults to 10.")] int commitCount = 10)
+        {
+            var notes = await GenerateReleaseNotesAsync(commitCount);
+
+            if (notes.StartsWith("⚠️") || notes.StartsWith("❌"))
+            {
+                return notes;
+            }
+
+            var repoPath = _repoHelper.GetRepoPathInternal();
+            if (string.IsNullOrEmpty(repoPath))
+            {
+                return "⚠️ No Git repository selected.";
+            }
+
+            var filePath = Path.Combine(repoPath, "RELEASE_NOTES.md");
+
+            File.WriteAllText(filePath, notes, Encoding.UTF8);
+            return $"✅ Release notes generated and saved to:\n`{filePath}`";
         }
     }
 }
