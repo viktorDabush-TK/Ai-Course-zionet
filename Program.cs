@@ -3,7 +3,8 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
 using SemanticKernelPlayground.Plugins;
-
+#pragma warning disable SKEXP0010
+#pragma warning disable SKEXP0001 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddJsonFile("appsettings.Development.json", optional: false, reloadOnChange: true)
@@ -15,7 +16,9 @@ var embedding = configuration["EmbeddingModel"] ?? throw new ApplicationExceptio
 var apiKey = configuration["ApiKey"] ?? throw new ApplicationException("ApiKey not found");
 
 var builder = Kernel.CreateBuilder()
-    .AddAzureOpenAIChatCompletion(modelName, endpoint, apiKey);
+    .AddAzureOpenAIChatCompletion(modelName, endpoint, apiKey)
+    .AddAzureOpenAITextEmbeddingGeneration(embedding, endpoint, apiKey)
+    .AddInMemoryVectorStore();
 
 var kernel = builder.Build();
 kernel.ImportPluginFromObject(new GitRepoPlugin(), "GitRepo");
@@ -72,3 +75,5 @@ do
 
 
 } while (true);
+#pragma warning restore SKEXP0010
+#pragma warning restore SKEXP0001
