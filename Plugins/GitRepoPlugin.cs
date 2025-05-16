@@ -11,6 +11,8 @@ namespace SemanticKernelPlayground.Plugins
         private static string? _activeRepoPath = Helper.TryAutoDetectRepo()?.Path;
         private static List<string> _discoveredRepos = new();
         private static List<string> _skippedPaths = new();
+        public static Func<string, Task>? OnRepoSelectedAsync;
+
 
         [KernelFunction, Description("Scans a base folder for Git repositories and lists them.")]
         public GitRepoResult ListGitRepos(string basePath)
@@ -48,7 +50,7 @@ namespace SemanticKernelPlayground.Plugins
         }
 
         [KernelFunction, Description("Selects a Git repository from the discovered list.")]
-        public GitRepoResult SelectGitRepoByIndex(int index)
+        public async Task<GitRepoResult> SelectGitRepoByIndex(int index)
         {
             if (_discoveredRepos == null || _discoveredRepos.Count == 0)
             {
@@ -69,6 +71,8 @@ namespace SemanticKernelPlayground.Plugins
             }
 
             _activeRepoPath = _discoveredRepos[index - 1];
+            if (OnRepoSelectedAsync is not null)
+                await OnRepoSelectedAsync.Invoke(_activeRepoPath);
 
             return new GitRepoResult
             {
@@ -78,8 +82,9 @@ namespace SemanticKernelPlayground.Plugins
             };
         }
 
+
         [KernelFunction, Description("Sets the active Git repository path manually.")]
-        public GitRepoResult SetActiveRepoPath(string repoPath)
+        public async Task<GitRepoResult> SetActiveRepoPath(string repoPath)
         {
             if (!Directory.Exists(Path.Combine(repoPath, ".git")))
             {
@@ -91,6 +96,8 @@ namespace SemanticKernelPlayground.Plugins
             }
 
             _activeRepoPath = repoPath;
+            if (OnRepoSelectedAsync is not null)
+                await OnRepoSelectedAsync.Invoke(_activeRepoPath);
 
             return new GitRepoResult
             {
@@ -99,6 +106,7 @@ namespace SemanticKernelPlayground.Plugins
                 SelectedRepo = _activeRepoPath
             };
         }
+
 
         [KernelFunction, Description("Returns the currently selected Git repository path.")]
         public GitRepoResult GetActiveRepoPath()

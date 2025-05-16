@@ -50,9 +50,9 @@ namespace SemanticKernelPlayground.Plugins
                 };
 
                 using var process = Process.Start(psi);
-                process.WaitForExit();
+                process?.WaitForExit();
 
-                if (process.ExitCode == 0)
+                if (process?.ExitCode == 0)
                 {
                     return new GitDetectionResult
                     {

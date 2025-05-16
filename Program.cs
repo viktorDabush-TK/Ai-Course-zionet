@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
+using Microsoft.SemanticKernel.Embeddings;
 using SemanticKernelPlayground.Plugins;
 #pragma warning disable SKEXP0010
 #pragma warning disable SKEXP0001 
@@ -21,10 +23,23 @@ var builder = Kernel.CreateBuilder()
     .AddInMemoryVectorStore();
 
 var kernel = builder.Build();
+var vectorStore = kernel.GetRequiredService<IVectorStore>();
+var textEmbeddingGenerator = kernel.GetRequiredService<ITextEmbeddingGenerationService>();
 kernel.ImportPluginFromObject(new GitRepoPlugin(), "GitRepo");
 kernel.ImportPluginFromObject(new GitLogPlugin(), "GitLog");
 kernel.ImportPluginFromObject(new ReleaseNotesPlugin(kernel), "ReleaseNotes");
 kernel.ImportPluginFromObject(new VersionManagerPlugin(), "VersionManager");
+var codeDocPlugin = new CodeDocPlugin(vectorStore, textEmbeddingGenerator);
+kernel.ImportPluginFromObject(codeDocPlugin, "CodeDoc");
+
+// Auto-ingest the selected repo when GitRepoPlugin sets a new path
+GitRepoPlugin.OnRepoSelectedAsync = async (repoPath) =>
+{
+    Console.WriteLine($"[Auto-Ingest] Indexing codebase from: {repoPath}");
+    var result = await codeDocPlugin.IngestCodebaseAsync(repoPath);
+    Console.WriteLine($"[Auto-Ingest] Done: {result}");
+};
+
 
 var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
