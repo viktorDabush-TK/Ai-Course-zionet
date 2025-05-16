@@ -32,7 +32,6 @@ kernel.ImportPluginFromObject(new VersionManagerPlugin(), "VersionManager");
 var codeDocPlugin = new CodeDocPlugin(vectorStore, textEmbeddingGenerator);
 kernel.ImportPluginFromObject(codeDocPlugin, "CodeDoc");
 
-// Auto-ingest the selected repo when GitRepoPlugin sets a new path
 GitRepoPlugin.OnRepoSelectedAsync = async (repoPath) =>
 {
     Console.WriteLine($"[Auto-Ingest] Indexing codebase from: {repoPath}");
