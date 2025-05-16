@@ -11,6 +11,7 @@ var configuration = new ConfigurationBuilder()
 
 var modelName = configuration["ModelName"] ?? throw new ApplicationException("ModelName not found");
 var endpoint = configuration["Endpoint"] ?? throw new ApplicationException("Endpoint not found");
+var embedding = configuration["EmbeddingModel"] ?? throw new ApplicationException("ModelName not found");
 var apiKey = configuration["ApiKey"] ?? throw new ApplicationException("ApiKey not found");
 
 var builder = Kernel.CreateBuilder()
