@@ -49,7 +49,8 @@ public class CodeDocPlugin(IVectorStore vectorStore, ITextEmbeddingGenerationSer
         foreach (var file in files)
         {
             var content = await File.ReadAllTextAsync(file, Encoding.UTF8);
-            var chunks = TextChunker.SplitPlainTextLines(content, maxTokensPerLine: 400);
+            var lines = content.Split('\n');
+            var chunks = TextChunker.SplitPlainTextParagraphs(lines, maxTokensPerParagraph: 100);
 
             foreach (var (chunkText, i) in chunks.Select((text, i) => (text, i)))
             {
@@ -58,7 +59,7 @@ public class CodeDocPlugin(IVectorStore vectorStore, ITextEmbeddingGenerationSer
                 var record = new TextChunk
                 {
                     Key = $"{file}#{i}",
-                    Text = chunkText,
+                    Text = $"[FILE: {Path.GetFileName(file)}]\n{chunkText}",
                     TextEmbedding = embedding
                 };
 
@@ -87,7 +88,7 @@ public class CodeDocPlugin(IVectorStore vectorStore, ITextEmbeddingGenerationSer
 
         try
         {
-            var results = collection.SearchEmbeddingAsync(embedding, 5);
+            var results = collection.SearchEmbeddingAsync(embedding, 10);
             var sb = new StringBuilder();
 
             await foreach (var result in results)
